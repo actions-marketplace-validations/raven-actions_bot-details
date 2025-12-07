@@ -1,7 +1,7 @@
-# https://docs.github.com/en/actions/creating-actions/metadata-syntax-for-github-actions
+# https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions
 ---
 name: Bot Details
-description: 🤖 Get bot basic details with proper GitHub format to use in another action for automation like git push, PR, and more.
+description: 🤖 Get bot details (name, email, author/committer) in a proper format for the subsequence steps like git, PR, and more.
 author: Dariusz Porowski
 branding:
   icon: user # https://feathericons.com/
@@ -12,8 +12,14 @@ inputs:
     description: Bot slug name (GitHub App name)
     required: false
     default: github-actions
+  set-env:
+    description: "Save action's output also as environment variables"
+    default: "true"
+  env-prefix:
+    description: Prefix for environment variables
+    required: false
   github-token:
-    description: GitHub token
+    description: GitHub token to use for API authentication
     required: false
     default: ${{ github.token }}
 
@@ -44,43 +50,16 @@ runs:
   using: composite
   steps:
     - name: Get bot details
-      uses: actions/github-script@v6
+      uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
       id: bot-details
       with:
         github-token: ${{ inputs.github-token }}
         script: |
-          const botSlugName = core.getInput('bot_slug_name', {required: true})
-          const botName = `${botSlugName}[bot]`
-
-          const { data } = await github.rest.users.getByUsername({
-            username: botName
-          })
-
-          const botId = data.id
-          const botEmail= `${botId}+${botName}@users.noreply.github.com`
-          const botNameEmail = `${botName} <${botEmail}>`
-          const botHtmlUrl = data.html_url
-          const botApiUrl = data.url
-
-          core.info(`botId: ${botId}`)
-          core.setOutput('id', botId)
-
-          core.info(`botSlugName: ${botSlugName}`)
-          core.setOutput('slug', botSlugName)
-
-          core.info(`botName: ${botName}`)
-          core.setOutput('name', `${botName}`)
-
-          core.info(`botEmail: ${botEmail}`)
-          core.setOutput('email', `${botEmail}`)
-
-          core.info(`botNameEmail: ${botNameEmail}`)
-          core.setOutput('name_email', `${botNameEmail}`)
-
-          core.info(`botHtmlUrl: ${botHtmlUrl}`)
-          core.setOutput('html_url', `${botHtmlUrl}`)
-
-          core.info(`botApiUrl: ${botApiUrl}`)
-          core.setOutput('api_url', `${botApiUrl}`)
+          const path = require('path')
+          const actionPath = path.join(process.env.GITHUB_ACTION_PATH, 'index.cjs')
+          const script = require(actionPath)
+          await script({ github, core })
       env:
         INPUT_BOT_SLUG_NAME: ${{ inputs.bot-slug-name }}
+        INPUT_SET_ENV: ${{ inputs.set-env }}
+        INPUT_ENV_PREFIX: ${{ inputs.env-prefix }}
